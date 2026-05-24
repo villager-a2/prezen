@@ -1,0 +1,443 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>AI画像認識シミュレーター</title>
+<link href="https://fonts.googleapis.com/css2?family=Zen+Maru+Gothic:wght@400;700;900&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --indigo: #4f46e5;
+    --indigo-light: #818cf8;
+    --indigo-dark: #3730a3;
+    --amber: #f59e0b;
+    --blue-bg: #eff6ff;
+    --blue-border: #bfdbfe;
+    --blue-text: #1e40af;
+    --amber-bg: #fffbeb;
+    --amber-border: #fde68a;
+    --amber-text: #92400e;
+    --slate-100: #f1f5f9;
+    --slate-200: #e2e8f0;
+    --slate-300: #cbd5e1;
+    --slate-500: #64748b;
+    --slate-600: #475569;
+    --slate-800: #1e293b;
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    min-height: 100vh;
+    background: var(--slate-100);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 1rem;
+    font-family: 'Zen Maru Gothic', sans-serif;
+    color: var(--slate-800);
+    overflow-x: hidden;
+  }
+
+  .card {
+    max-width: 680px;
+    width: 100%;
+    background: #fff;
+    border-radius: 1.25rem;
+    box-shadow: 0 20px 60px rgba(0,0,0,0.12);
+    overflow: hidden;
+    position: relative;
+    z-index: 10;
+  }
+
+  /* Header */
+  .header {
+    background: var(--indigo);
+    padding: 1.5rem 2rem;
+    text-align: center;
+  }
+  .header h1 {
+    font-size: 1.4rem;
+    font-weight: 900;
+    color: #fff;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.5rem;
+  }
+  .header p {
+    color: #c7d2fe;
+    margin-top: 0.5rem;
+    font-size: 0.85rem;
+  }
+
+  /* Body grid */
+  .body {
+    padding: 2rem;
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 2rem;
+  }
+  @media (max-width: 540px) {
+    .body { grid-template-columns: 1fr; }
+  }
+
+  /* Items panel */
+  .items-panel {
+    background: var(--slate-100);
+    border: 2px dashed var(--slate-200);
+    border-radius: 1rem;
+    padding: 1.25rem;
+  }
+  .items-panel h2 {
+    font-size: 0.85rem;
+    font-weight: 700;
+    color: var(--slate-600);
+    text-align: center;
+    margin-bottom: 1rem;
+  }
+  .items-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 1.25rem;
+    justify-items: center;
+  }
+  .item-wrap {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 0.4rem;
+  }
+  .shape {
+    width: 5rem;
+    height: 5rem;
+    cursor: grab;
+    touch-action: none;
+    user-select: none;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+    transition: transform 0.15s, box-shadow 0.15s;
+    -webkit-user-drag: none;
+  }
+  .shape:hover { transform: scale(1.1); box-shadow: 0 6px 20px rgba(0,0,0,0.2); }
+  .shape:active { cursor: grabbing; }
+  .shape.dragging-source { opacity: 0.3; }
+  .shape.circle { border-radius: 50%; }
+  .shape.square { border-radius: 0.75rem; }
+  .shape.red    { background: #ef4444; }
+  .shape.yellow { background: #facc15; }
+  .shape.green  { background: #22c55e; }
+  .shape.blue   { background: #3b82f6; }
+  .item-label {
+    font-size: 0.7rem;
+    font-weight: 700;
+    color: var(--slate-500);
+  }
+
+  /* Robot panel */
+  .robot-panel {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: flex-end;
+    gap: 0;
+  }
+
+  /* Speech bubble */
+  .bubble {
+    width: 100%;
+    text-align: center;
+    padding: 1rem;
+    border-radius: 0.875rem;
+    border: 2px solid var(--blue-border);
+    background: var(--blue-bg);
+    color: var(--blue-text);
+    position: relative;
+    margin-bottom: 1.25rem;
+    transition: background 0.3s, border-color 0.3s, color 0.3s;
+    min-height: 6rem;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+  .bubble.analyzing {
+    background: var(--amber-bg);
+    border-color: var(--amber-border);
+    color: var(--amber-text);
+  }
+  .bubble-text {
+    font-weight: 700;
+    font-size: 1rem;
+    line-height: 1.6;
+    white-space: pre-wrap;
+  }
+  /* Result emoji big */
+  .bubble-text .emoji-big {
+    display: block;
+    font-size: 3.5rem;
+    line-height: 1.2;
+    margin: 0.3rem 0;
+    animation: popIn 0.4s cubic-bezier(0.34,1.56,0.64,1) both;
+  }
+  /* Multi emoji row */
+  .bubble-text .emoji-row {
+    display: flex;
+    justify-content: center;
+    gap: 0.5rem;
+    flex-wrap: wrap;
+    margin: 0.3rem 0;
+  }
+  .bubble-text .emoji-row span {
+    font-size: 2.8rem;
+    line-height: 1.2;
+    animation: popIn 0.4s cubic-bezier(0.34,1.56,0.64,1) both;
+  }
+  .bubble-text .emoji-row span:nth-child(2) { animation-delay: 0.1s; }
+  .bubble-text .emoji-row span:nth-child(3) { animation-delay: 0.2s; }
+
+  @keyframes popIn {
+    from { transform: scale(0); opacity: 0; }
+    to   { transform: scale(1); opacity: 1; }
+  }
+
+  /* Bubble tail */
+  .bubble::after {
+    content: '';
+    position: absolute;
+    top: 100%;
+    left: 50%;
+    transform: translateX(-50%);
+    border: 12px solid transparent;
+    border-top-color: var(--blue-border);
+    transition: border-top-color 0.3s;
+  }
+  .bubble::before {
+    content: '';
+    position: absolute;
+    top: calc(100% - 3px);
+    left: 50%;
+    transform: translateX(-50%);
+    border: 10px solid transparent;
+    border-top-color: var(--blue-bg);
+    z-index: 1;
+    transition: border-top-color 0.3s;
+  }
+  .bubble.analyzing::after  { border-top-color: var(--amber-border); }
+  .bubble.analyzing::before { border-top-color: var(--amber-bg); }
+
+  /* Drop zone (robot) */
+  .drop-zone {
+    width: 100%;
+    height: 11rem;
+    border-radius: 1rem;
+    border: 4px dashed var(--slate-300);
+    background: var(--slate-100);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 0.5rem;
+    transition: all 0.25s;
+    cursor: default;
+  }
+  .drop-zone.hovered {
+    border-style: solid;
+    border-color: var(--indigo);
+    background: #e0e7ff;
+    transform: scale(1.05);
+    box-shadow: inset 0 4px 20px rgba(79,70,229,0.1);
+  }
+  .drop-zone .bot-icon {
+    font-size: 4.5rem;
+    line-height: 1;
+    transition: transform 0.25s;
+    user-select: none;
+  }
+  .drop-zone.hovered .bot-icon { animation: bounce 0.6s infinite alternate; }
+  .drop-zone.analyzing .bot-icon { animation: spin 3s linear infinite; }
+  @keyframes bounce {
+    from { transform: translateY(0); }
+    to   { transform: translateY(-8px); }
+  }
+  @keyframes spin {
+    from { transform: rotate(0deg); }
+    to   { transform: rotate(360deg); }
+  }
+  .drop-zone .drop-label {
+    font-size: 0.85rem;
+    font-weight: 700;
+    color: var(--slate-500);
+    transition: color 0.25s;
+  }
+  .drop-zone.hovered .drop-label { color: var(--indigo); }
+  .drop-zone.analyzing .drop-label { color: var(--amber); }
+
+  /* Drag ghost */
+  #drag-ghost {
+    position: fixed;
+    pointer-events: none;
+    z-index: 9999;
+    width: 5rem;
+    height: 5rem;
+    transform: translate(-50%, -50%);
+    opacity: 0.9;
+    box-shadow: 0 8px 30px rgba(0,0,0,0.25);
+    display: none;
+  }
+</style>
+</head>
+<body>
+
+<div class="card">
+  <div class="header">
+    <h1>✨ AI画像認識シミュレーター</h1>
+    <p>図形をドラッグ＆ドロップするか、タップしてロボットに渡してみてね</p>
+  </div>
+
+  <div class="body">
+    <!-- Items -->
+    <div class="items-panel">
+      <h2>渡せるアイテム</h2>
+      <div class="items-grid">
+        <div class="item-wrap">
+          <div class="shape circle red" data-id="red-circle" title="赤い丸（掴んでロボットに渡す）"></div>
+          <span class="item-label">赤い丸</span>
+        </div>
+        <div class="item-wrap">
+          <div class="shape circle yellow" data-id="yellow-circle" title="黄色い丸"></div>
+          <span class="item-label">黄色い丸</span>
+        </div>
+        <div class="item-wrap">
+          <div class="shape circle green" data-id="green-circle" title="緑の丸"></div>
+          <span class="item-label">緑の丸</span>
+        </div>
+        <div class="item-wrap">
+          <div class="shape square blue" data-id="blue-square" title="青い四角"></div>
+          <span class="item-label">青い四角</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- Robot -->
+    <div class="robot-panel">
+      <div class="bubble" id="bubble">
+        <div class="bubble-text" id="bubble-text">図形を僕に渡してね！</div>
+      </div>
+      <div class="drop-zone" id="drop-zone">
+        <div class="bot-icon" id="bot-icon">🤖</div>
+        <span class="drop-label" id="drop-label">ここにドロップ！</span>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Drag ghost element -->
+<div id="drag-ghost"></div>
+
+<script>
+const results = {
+  'red-circle':    { html: '<span>これは…</span><span class="emoji-big">🍎</span><span>りんご です！</span>' },
+  'yellow-circle': { html: '<span>これは…</span><span class="emoji-big">🍌</span><span>バナナ です！</span>' },
+  'green-circle':  { html: '<span>これは…</span><span class="emoji-big">🥑</span><span>アボカド です！</span>' },
+  'blue-square':   { html: '<span>これは…</span><div class="emoji-row"><span>🍎</span><span>🍌</span><span>🥑</span></div><span>の詰め合わせです！</span>' },
+};
+
+let dragging = null;
+let startX = 0, startY = 0;
+let analyzing = false;
+
+const ghost = document.getElementById('drag-ghost');
+const dropZone = document.getElementById('drop-zone');
+const bubble = document.getElementById('bubble');
+const bubbleText = document.getElementById('bubble-text');
+const botIcon = document.getElementById('bot-icon');
+const dropLabel = document.getElementById('drop-label');
+
+function setHovered(val) {
+  dropZone.classList.toggle('hovered', val);
+  if (!analyzing) {
+    dropLabel.textContent = val ? 'ここに離して！' : 'ここにドロップ！';
+  }
+}
+
+function processItem(id) {
+  if (analyzing) return;
+  analyzing = true;
+
+  bubble.classList.remove('analyzing');
+  bubble.classList.add('analyzing');
+  bubbleText.innerHTML = '<span>ウィーン… 画像を解析中…</span>';
+  dropZone.classList.add('analyzing');
+  botIcon.textContent = '⚙️';
+  dropLabel.textContent = '解析中…';
+
+  setTimeout(() => {
+    analyzing = false;
+    bubble.classList.remove('analyzing');
+    dropZone.classList.remove('analyzing');
+    botIcon.textContent = '🤖';
+    dropLabel.textContent = 'ここにドロップ！';
+    const r = results[id] || { html: '<span>【 ❓ なぞの物体 】</span>' };
+    bubbleText.innerHTML = r.html;
+  }, 800);
+}
+
+// ---- Pointer events ----
+document.querySelectorAll('.shape').forEach(shape => {
+  shape.addEventListener('pointerdown', e => {
+    if (analyzing) return;
+    dragging = shape.dataset.id;
+    startX = e.clientX;
+    startY = e.clientY;
+
+    shape.classList.add('dragging-source');
+    shape.setPointerCapture(e.pointerId);
+
+    // Set up ghost
+    const computedBg = getComputedStyle(shape).backgroundColor;
+    const isCircle = shape.classList.contains('circle');
+    ghost.style.background = computedBg;
+    ghost.style.borderRadius = isCircle ? '50%' : '0.75rem';
+    ghost.style.left = e.clientX + 'px';
+    ghost.style.top  = e.clientY + 'px';
+    ghost.style.display = 'block';
+  });
+
+  shape.addEventListener('pointermove', e => {
+    if (!dragging) return;
+    ghost.style.left = e.clientX + 'px';
+    ghost.style.top  = e.clientY + 'px';
+
+    const rect = dropZone.getBoundingClientRect();
+    const inside = e.clientX >= rect.left && e.clientX <= rect.right &&
+                   e.clientY >= rect.top  && e.clientY <= rect.bottom;
+    setHovered(inside);
+  });
+
+  shape.addEventListener('pointerup', e => {
+    if (!dragging) return;
+    const id = dragging;
+    dragging = null;
+    shape.classList.remove('dragging-source');
+    ghost.style.display = 'none';
+    setHovered(false);
+    shape.releasePointerCapture(e.pointerId);
+
+    const rect = dropZone.getBoundingClientRect();
+    const inside = e.clientX >= rect.left && e.clientX <= rect.right &&
+                   e.clientY >= rect.top  && e.clientY <= rect.bottom;
+    const dist = Math.hypot(e.clientX - startX, e.clientY - startY);
+
+    if (inside || dist < 5) processItem(id);
+  });
+
+  shape.addEventListener('pointercancel', e => {
+    dragging = null;
+    shape.classList.remove('dragging-source');
+    ghost.style.display = 'none';
+    setHovered(false);
+  });
+});
+</script>
+</body>
+</html>
